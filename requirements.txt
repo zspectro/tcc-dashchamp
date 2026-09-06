@@ -1,0 +1,4 @@
+streamlit
+requests
+firebase-admin
+google-cloud-firestore
