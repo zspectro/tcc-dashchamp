@@ -4,6 +4,8 @@ import firebase_admin
 from firebase_admin import credentials, auth
 
 from menu import mostrar_menu
+from sobre import mostrar_sobre
+from perfil import perfil
 
 if not firebase_admin._apps:
     cred = credentials.Certificate('serviceAccountKey.json')
@@ -20,10 +22,30 @@ st.set_page_config(
 if st.query_params.get("tela") == "cadastro":
     st.session_state.tela = "cadastro"
 
-# Autentica usando o mesmo JSON de serviço
 db = firestore.Client.from_service_account_json('serviceAccountKey.json')
 
+## sistema de tema , configura no perfil
+tema = st.session_state.get("tema", "Escuro")
 
+if tema == "Claro":
+    st.markdown("""
+        <style>
+        .stApp {
+            background-color: #ffffff;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+elif tema == "Escuro":
+    st.markdown("""
+        <style>
+        .stApp {
+            background-color: #0e1117;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+##resto do css
 st.markdown(
     """
     <style>
@@ -33,6 +55,7 @@ st.markdown(
         * {
             font-family: 'Poppins', sans-serif !important;
         }
+        
 
         div.stButton > button {
             background-color: #4CAF50;
@@ -66,20 +89,72 @@ st.markdown(
             font-size: 14px;
         }
         
+        .alterar {
+            color: #0099ff !important;
+            font-size: 14px;
+        }
+        
         .texto-menor {
             color: #666666 !important;
             font-size: 12px;
         }
         
+        .st-key-alterar_nick_button button p{
+            border-radius: 10px;
+            font-size: 20px !important;
+        }
+        
+        .st-key-alterar_nick_button button {
+
+            color: #0099ff !important;
+            background-color: #f0f0f0 !important;
+            width: 130px !important;
+            height: 50px  !important;
+        }
+        
+        .st-key-alterar_foto_button button p{
+            border-radius: 10px;
+            font-size: 20px !important;
+        }
+        
+        .st-key-alterar_foto_button button {
+            color: #0099ff !important;
+            background-color: #f0f0f0 !important;
+            width: 130px !important;
+            height: 50px  !important;
+        }
+        
+        .st-key-ver_his_button button p{
+            border-radius: 10px;
+            font-size: 20px !important;
+        }
+        
+        .st-key-ver_his_button button {
+            color: #0099ff !important;
+            background-color: #f0f0f0 !important;
+            width: 130px !important;
+            height: 50px  !important;
+        }
+        
+        .st-key-alterar_senha_button button p{
+            border-radius: 10px;
+            font-size: 20px !important;
+        }
+        
+        .st-key-alterar_senha_button button {
+            color: #0099ff !important;
+            background-color: #f0f0f0 !important;
+            width: 130px !important;
+            height: 50px  !important;
+        }
         
         .st-key-perfil_button button p{
             border-radius: 10px;
-            width: 150px;
-            height: 40px;
             font-size: 26px !important;
+            
         }
         
-        .st-key-perfil_button button, .st-key-sala-button button, .st-key-sobre_button button {
+        .st-key-perfil_button button, .st-key-sala_button button, .st-key-sobre_button button, .st-key-voltar_button button {
             width: 230px !important;
             height: 50px;
             background-color: #4CAF50;
@@ -93,6 +168,10 @@ st.markdown(
         
         .st-key-sobre_button button p{
             border-radius: 10px;
+            font-size: 26px !important;
+        }
+        
+        .st-key-voltar_button button p{
             font-size: 26px !important;
         }
 
@@ -167,7 +246,7 @@ if st.session_state.tela == "login":
 
                     st.success("Login bem-sucedido!")
                     st.session_state.logado = True
-                    st.session_state.nick = dados_usuario["localId"]
+                    st.session_state.uid = dados_usuario["localId"]
                     st.session_state.email = dados_usuario["email"]
                     st.session_state.tela = "menu"
                     st.rerun()
@@ -239,3 +318,7 @@ elif st.session_state.tela == "cadastro":
         
 elif st.session_state.tela == "menu":
     mostrar_menu()
+elif st.session_state.tela == "sobre":
+    mostrar_sobre()
+elif st.session_state.tela == "perfil":
+    perfil()

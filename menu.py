@@ -10,7 +10,10 @@ def mostrar_menu():
             
         esquerda, centro, direita = st.columns([1, 4, 1])##alinha botao no meio
         with centro:
-            st.button("Perfil", key="perfil_button", wrap=True)
+            def avancar_para_perfil():
+                st.session_state.tela = "perfil"
+            st.button("Perfil", key="perfil_button", wrap=True, on_click=lambda: avancar_para_perfil())
+
     with col2:
         with st.container(key="container2", height=600):
             st.markdown('<h1 class="titulo">Notícias</h1>', text_alignment="center", unsafe_allow_html=True)
@@ -37,5 +40,6 @@ def mostrar_menu():
             st.markdown('<h3 class="texto">mais jogos aq</h3>', text_alignment="left", unsafe_allow_html=True)
         esquerda, centro, direita = st.columns([1, 3, 1])##alinha botao no meio
         with centro:
-            st.button("Sobre", key="sobre_button")
-        
+            def avancar_para_sobre():
+                st.session_state.tela = "sobre"
+            st.button("Sobre", key="sobre_button", on_click=lambda: avancar_para_sobre())
