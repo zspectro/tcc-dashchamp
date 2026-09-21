@@ -3,6 +3,8 @@ import requests
 import firebase_admin
 from firebase_admin import credentials, auth
 
+from menu import mostrar_menu
+
 if not firebase_admin._apps:
     cred = credentials.Certificate('serviceAccountKey.json')
     firebase_admin.initialize_app(cred)
@@ -12,7 +14,7 @@ from google.cloud import firestore
 st.set_page_config(
     page_title="DashChamp",
     page_icon="⚽",
-    layout="centered"
+    layout="wide"
 )
 
 if st.query_params.get("tela") == "cadastro":
@@ -21,9 +23,17 @@ if st.query_params.get("tela") == "cadastro":
 # Autentica usando o mesmo JSON de serviço
 db = firestore.Client.from_service_account_json('serviceAccountKey.json')
 
+
 st.markdown(
     """
     <style>
+    
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
+        * {
+            font-family: 'Poppins', sans-serif !important;
+        }
+
         div.stButton > button {
             background-color: #4CAF50;
             color: white;
@@ -33,6 +43,57 @@ st.markdown(
             font-size: 16px;
             width: 200px;
             transition: background-color 0.2s ease, transform 0.2s ease;
+        }
+        
+        
+        .st-key-container1, .st-key-container2, .st-key-container3, .st-key-inside-container {
+            background-color: #f0f0f0;
+            padding: 20px;
+            border-radius: 15px;
+        }
+        
+        .st-key.container1 {
+            display: flex;
+            justify-content: center;
+        }
+
+        .titulo {
+            color: #333333 !important;
+        }
+        
+        .texto {
+            color: #666666 !important;
+            font-size: 14px;
+        }
+        
+        .texto-menor {
+            color: #666666 !important;
+            font-size: 12px;
+        }
+        
+        
+        .st-key-perfil_button button p{
+            border-radius: 10px;
+            width: 150px;
+            height: 40px;
+            font-size: 26px !important;
+        }
+        
+        .st-key-perfil_button button, .st-key-sala-button button, .st-key-sobre_button button {
+            width: 230px !important;
+            height: 50px;
+            background-color: #4CAF50;
+            color: white;
+        }
+        
+        .st-key-sala_button button p{
+            border-radius: 10px;
+            font-size: 26px !important;
+        }
+        
+        .st-key-sobre_button button p{
+            border-radius: 10px;
+            font-size: 26px !important;
         }
 
         div.stButton > button:hover {
@@ -68,51 +129,51 @@ def fazer_login(email, senha):
 
 if st.session_state.tela == "login":
 
-    with st.container(
-        border=True,
-        width=400,
-        horizontal_alignment="center"
-    ):
+    esquerda, centro, direita = st.columns([1, 1, 1])
 
-        st.title(":blue[Dash]:green[Champ]", text_alignment="center")
+    with centro:
+        with st.container(
+            border=True,
+            horizontal_alignment="center",
+        ):
 
-        email = st.text_input(
-            "Email",
-            placeholder="Digite seu email"
-        )
+            st.title(":blue[Dash]:green[Champ]", text_alignment="center")
 
-        senha = st.text_input(
-            "Senha",
-            placeholder="Digite sua senha",
-            type="password"
-        )
-        
-        st.write(":blue[Esqueceu sua senha?]")
-        
-        
-        st.markdown(
-            'Não possui conta? <a href="?tela=cadastro">Cadastre-se</a>',
-            unsafe_allow_html=True
-        )
-        
-        if st.button("Entrar"):
+            email = st.text_input(
+                "Email",
+                placeholder="Digite seu email"
+            )
 
-            resposta = fazer_login(email, senha)
+            senha = st.text_input(
+                "Senha",
+                placeholder="Digite sua senha",
+                type="password"
+            )
+            
+            st.write(":blue[Esqueceu sua senha?]")
+            
+            
+            st.markdown(
+                'Não possui conta? <a href="?tela=cadastro">Cadastre-se</a>',
+                unsafe_allow_html=True
+            )
+            
+            if st.button("Entrar"):
 
-            if resposta.status_code == 200:
-                dados_usuario = resposta.json()
+                resposta = fazer_login(email, senha)
 
-                st.success("Login bem-sucedido!")
+                if resposta.status_code == 200:
+                    dados_usuario = resposta.json()
 
-            else:
-                st.error("Email ou senha incorretos.")
+                    st.success("Login bem-sucedido!")
+                    st.session_state.logado = True
+                    st.session_state.nick = dados_usuario["localId"]
+                    st.session_state.email = dados_usuario["email"]
+                    st.session_state.tela = "menu"
+                    st.rerun()
 
-
-        # if st.button("Não possui conta?", width=200):
-        #     st.session_state.tela = "cadastro"
-        #     st.rerun()
-
-        # st.button("Esqueceu sua senha?", width=200)
+                else:
+                    st.error("Email ou senha incorretos.")
 
 
 elif st.session_state.tela == "cadastro":
@@ -175,3 +236,6 @@ elif st.session_state.tela == "cadastro":
             'Já possui conta? <a href="?tela=login">Faça login</a>',
             unsafe_allow_html=True
         )
+        
+elif st.session_state.tela == "menu":
+    mostrar_menu()
