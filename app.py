@@ -257,64 +257,66 @@ if st.session_state.tela == "login":
 
 elif st.session_state.tela == "cadastro":
 
-    with st.container(
-        border=True,
-        width=400,
-        horizontal_alignment="center"
-    ):
+    esquerda, centro, direita = st.columns([1, 1, 1])
+    with centro:
+        with st.container(
+            border=True,
+            width=400,
+            horizontal_alignment="center"
+        ):
 
-        st.title("Criar conta", text_alignment="center")
-        
-        usuario = st.text_input(
-            "Usuário",
-            placeholder="Digite seu usuário"
-        )
-        
-        email = st.text_input(
-            "Email",
-            placeholder="Digite seu email"
-        )
+            st.title("Criar conta", text_alignment="center")
+            
+            usuario = st.text_input(
+                "Usuário",
+                placeholder="Digite seu usuário"
+            )
+            
+            email = st.text_input(
+                "Email",
+                placeholder="Digite seu email"
+            )
 
-        senha = st.text_input(
-            "Nova senha",
-            placeholder="Digite sua senha",
-            type="password"
-        )
+            senha = st.text_input(
+                "Nova senha",
+                placeholder="Digite sua senha",
+                type="password"
+            )
 
-        confirmar_senha = st.text_input(
-            "Confirmar senha",
-            placeholder="Digite novamente sua senha",
-            type="password"
-        )
-        
-        if st.button("Cadastrar"):
-            # Aqui você pode adicionar a lógica para criar a conta no Firebase
-            if usuario and email and senha and confirmar_senha:
-                if senha == confirmar_senha:
-                    try:
-                        user = auth.create_user(
-                            email=email,
-                            password=senha,
-                            display_name=usuario
-                        )
-                        user.uid
-                        st.success("Conta criada com sucesso!")
-                        st.session_state.tela = "login"
-                        st.rerun()
-                        
-                    except Exception as e:
-                        st.error(f"Erro ao criar conta: {e}")
+            confirmar_senha = st.text_input(
+                "Confirmar senha",
+                placeholder="Digite novamente sua senha",
+                type="password"
+            )
+            
+            if st.button("Cadastrar"):
+                # Aqui você pode adicionar a lógica para criar a conta no Firebase
+                if usuario and email and senha and confirmar_senha:
+                    if senha == confirmar_senha:
+                        try:
+                            user = auth.create_user(
+                                email=email,
+                                password=senha,
+                                display_name=usuario
+                            )
+                            user.uid
+                            st.success("Conta criada com sucesso!")
+                            st.session_state.tela = "login"
+                            st.rerun()
+                            
+                        except Exception as e:
+                            st.error(f"Erro ao criar conta: {e}")
+                    else:
+                        st.error("As senhas não coincidem.")
                 else:
-                    st.error("As senhas não coincidem.")
-            else:
-                st.error("Por favor, preencha todos os campos.")
-                
+                    st.error("Por favor, preencha todos os campos.")
+                    
 
 
-        st.markdown(
-            'Já possui conta? <a href="?tela=login">Faça login</a>',
-            unsafe_allow_html=True
-        )
+            st.markdown(
+                'Já possui conta? <a href="?tela=login">Faça login</a>',
+                unsafe_allow_html=True
+            )
         
 elif st.session_state.tela == "menu":
     mostrar_menu()
