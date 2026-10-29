@@ -173,7 +173,7 @@ def mostrar_menu():
 
         esquerda, centro, direita = st.columns([1, 1, 1])
         with centro:
-            st.button("Sala", key="sala_button", wrap=True)
+            st.button("Salas", key="sala_button", wrap=True, on_click=_ir_para_tela, args=("salas",))
 
     with col3:
         with st.container(key="container3", height=600):

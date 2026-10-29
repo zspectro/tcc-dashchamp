@@ -6,6 +6,7 @@ from firebase_admin import credentials, auth
 from menu import mostrar_menu
 from sobre import mostrar_sobre
 from perfil import perfil
+from salas import salas
 
 if not firebase_admin._apps:
     cred = credentials.Certificate('serviceAccountKey.json')
@@ -324,3 +325,5 @@ elif st.session_state.tela == "sobre":
     mostrar_sobre()
 elif st.session_state.tela == "perfil":
     perfil()
+elif st.session_state.tela == "salas":
+    salas()

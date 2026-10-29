@@ -1,6 +1,10 @@
 import streamlit as st
 import firebase_admin
 from firebase_admin import auth
+
+def _salvar_tema():
+    st.session_state.tema = st.session_state.tema_widget
+
 def perfil():
     user = auth.get_user(st.session_state.uid)
     nome_usuario = user.display_name
@@ -18,7 +22,16 @@ def perfil():
             with direita:
                 st.button("Alterar", key="alterar_nick_button")
                 st.button("Alterar", key="alterar_foto_button")
-                st.selectbox("Escolha o tema",("Escuro", "Claro"),key="tema",label_visibility="collapsed")
+                temas = ("Escuro", "Claro")
+                tema_atual = st.session_state.get("tema", "Escuro")
+                st.selectbox(
+                    "Escolha o tema",
+                    temas,
+                    index=temas.index(tema_atual),
+                    key="tema_widget",
+                    on_change=_salvar_tema,
+                    label_visibility="collapsed",
+                )
                 st.button("Ver", key="ver_his_button")  
                 st.button("Alterar", key="alterar_senha_button")
                 
