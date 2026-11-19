@@ -1,14 +1,15 @@
 from html import escape
+from jogos import obter_jogos_por_dia
 
 import streamlit as st
 from requests import RequestException
 
-from noticias import obter_noticias
+from noticias import obter_noticias_por_tema
 
 
-def _mover_carrossel(direcao: int, quantidade: int) -> None:
-    indice_atual = st.session_state.get("noticia_atual", 0)
-    st.session_state.noticia_atual = (indice_atual + direcao) % quantidade
+def _mover_carrossel(chave: str, direcao: int, quantidade: int) -> None:
+    indice_atual = st.session_state.get(chave, 0)
+    st.session_state[chave] = (indice_atual + direcao) % quantidade
 
 
 def _ir_para_tela(tela: str) -> None:
@@ -35,17 +36,17 @@ def _html_card_noticia(noticia: dict, indice: int, quantidade: int) -> str:
 
     return f"""
     <style>
-      .st-key-container2 h1.titulo {{
+    .st-key-container2 h1.titulo {{
         color: #111111 !important;
         margin-top: 0.1rem !important;
         margin-bottom: 0.35rem !important;
       }}
-      .st-key-container2 .st-key-inside-container {{
+    .st-key-container2 .st-key-inside-container {{
         background: #ffffff !important;
         padding: 9px !important;
         border-radius: 12px !important;
       }}
-      .dash-noticia-card {{
+    .dash-noticia-card {{
         color: #111111 !important;
         background: #ffffff;
         margin: 0;
@@ -53,8 +54,8 @@ def _html_card_noticia(noticia: dict, indice: int, quantidade: int) -> str:
         font-family: 'Poppins', sans-serif;
         overflow: hidden;
       }}
-      .dash-noticia-card * {{ box-sizing: border-box; }}
-      .dash-noticia-titulo {{
+    .dash-noticia-card * {{ box-sizing: border-box; }}
+    .dash-noticia-titulo {{
         color: #111111 !important;
         font-size: 17px;
         font-weight: 700;
@@ -66,7 +67,7 @@ def _html_card_noticia(noticia: dict, indice: int, quantidade: int) -> str:
         overflow: hidden;
         overflow-wrap: anywhere;
       }}
-      .dash-noticia-imagem {{
+    .dash-noticia-imagem {{
         width: 100%;
         height: 250px;
         display: block;
@@ -75,7 +76,7 @@ def _html_card_noticia(noticia: dict, indice: int, quantidade: int) -> str:
         border-radius: 8px;
         margin: 0 0 7px 0;
       }}
-      .dash-noticia-resumo {{
+    .dash-noticia-resumo {{
         color: #111111 !important;
         font-size: 12px;
         line-height: 1.42;
@@ -86,7 +87,7 @@ def _html_card_noticia(noticia: dict, indice: int, quantidade: int) -> str:
         overflow: hidden;
         overflow-wrap: anywhere;
       }}
-      .dash-noticia-meta {{
+    .dash-noticia-meta {{
         color: #333333 !important;
         font-size: 10px;
         line-height: 1.3;
@@ -100,6 +101,52 @@ def _html_card_noticia(noticia: dict, indice: int, quantidade: int) -> str:
       <div class="dash-noticia-meta">{data_formatada} · {categoria} · Notícia {indice + 1} de {quantidade} · Agência Brasil</div>
     </div>
     """
+    
+def _html_jogo(jogo: dict) -> str:
+    """Uma linha: Mandante x Visitante  horário (tudo em uma linha só)."""
+    mandante = escape(jogo["mandante"])
+    visitante = escape(jogo["visitante"])
+    horario = escape(jogo["horario"])
+    return f'<h3 class="texto">{mandante} x {visitante} <small>{horario}</small></h3>'
+
+
+def _mostrar_carrossel_do_tema(noticias: list[dict], numero_aba: int) -> None:
+    """Mostra o carrossel (cartão + botões) de UM tema, com posição própria."""
+    if not noticias:
+        st.info("Nenhuma notícia recente encontrada para este tema.")
+        return
+
+    chave = f"noticia_atual_{numero_aba}"   # cada aba lembra a própria posição
+    quantidade = len(noticias)
+    indice = st.session_state.get(chave, 0) % quantidade
+    st.session_state[chave] = indice
+    noticia = noticias[indice]
+
+    st.markdown(
+        _html_card_noticia(noticia, indice, quantidade),
+        unsafe_allow_html=True,
+    )
+    st.link_button(
+        "Ler notícia na Agência Brasil",
+        noticia["url"],
+        width="stretch",
+    )
+
+    with st.container(horizontal=True, horizontal_alignment="distribute"):
+        st.button(
+            "Anterior",
+            key=f"noticia_anterior_{numero_aba}",
+            on_click=_mover_carrossel,
+            args=(chave, -1, quantidade),
+            disabled=quantidade < 2,
+        )
+        st.button(
+            "Próxima",
+            key=f"noticia_proxima_{numero_aba}",
+            on_click=_mover_carrossel,
+            args=(chave, 1, quantidade),
+            disabled=quantidade < 2,
+        )
 
 
 def mostrar_menu():
@@ -130,46 +177,44 @@ def mostrar_menu():
 
             with st.container(key="inside-container"):
                 try:
-                    noticias = obter_noticias()
-                except (RequestException, ValueError) as erro:
+                    temas = obter_noticias_por_tema()
+                except RequestException as erro:
                     st.warning(
                         "Não foi possível carregar as notícias da Agência Brasil. "
                         f"Detalhes: {erro}"
                     )
                 else:
-                    if not noticias:
-                        st.info("Nenhuma notícia relevante sobre apostas foi encontrada nas pesquisas.")
-                    else:
-                        quantidade = len(noticias)
-                        indice = st.session_state.get("noticia_atual", 0) % quantidade
-                        st.session_state.noticia_atual = indice
-                        noticia = noticias[indice]
+                    # abas sempre verdes (selecionada, não selecionada e hover)
+                    st.markdown(
+                        """
+                        <style>
+                          /* texto das abas sempre verde */
+                          .st-key-container2 [data-testid="stTab"],
+                          .st-key-container2 [data-testid="stTab"] *,
+                          .st-key-container2 [role="tab"],
+                          .st-key-container2 [role="tab"] * {
+                            color: #1B8A3A !important;
+                          }
+                          .st-key-container2 [data-testid="stTab"] p {
+                            font-size: 13px;
+                          }
+                          /* linha da aba selecionada: qualquer elemento da lista
+                             de abas que NÃO seja uma aba */
+                          .st-key-container2 [role="tablist"] > :not([role="tab"]) {
+                            background-color: #1B8A3A !important;
+                          }
+                          .st-key-container2 [data-testid="stTab"][aria-selected="true"]::after {
+                            background-color: #1B8A3A !important;
+                          }
+                        </style>
+                        """,
+                        unsafe_allow_html=True,
+                    )
 
-                        st.markdown(
-                            _html_card_noticia(noticia, indice, quantidade),
-                            unsafe_allow_html=True,
-                        )
-                        st.link_button(
-                            "Ler notícia na Agência Brasil",
-                            noticia["url"],
-                            width="stretch",
-                        )
-
-                        with st.container(horizontal=True, horizontal_alignment="distribute"):
-                            st.button(
-                                "Anterior",
-                                key="noticia_anterior",
-                                on_click=_mover_carrossel,
-                                args=(-1, quantidade),
-                                disabled=quantidade < 2,
-                            )
-                            st.button(
-                                "Próxima",
-                                key="noticia_proxima",
-                                on_click=_mover_carrossel,
-                                args=(1, quantidade),
-                                disabled=quantidade < 2,
-                            )
+                    abas = st.tabs(list(temas))
+                    for numero, (aba, noticias) in enumerate(zip(abas, temas.values())):
+                        with aba:
+                            _mostrar_carrossel_do_tema(noticias, numero)
 
         esquerda, centro, direita = st.columns([1, 1, 1])
         with centro:
@@ -178,10 +223,21 @@ def mostrar_menu():
     with col3:
         with st.container(key="container3", height=600):
             st.markdown('<h1 class="titulo">Jogos</h1>', text_alignment="center", unsafe_allow_html=True)
-            st.markdown('<h3 class="texto">FLA x FLU</h3>', text_alignment="left", unsafe_allow_html=True)
-            st.markdown('<h3 class="texto">VAS x BOT</h3>', text_alignment="left", unsafe_allow_html=True)
-            st.markdown('<h3 class="texto">GRE x PAL</h3>', text_alignment="left", unsafe_allow_html=True)
-            st.markdown('<h3 class="texto">mais jogos aq</h3>', text_alignment="left", unsafe_allow_html=True)
+
+            try:
+                with st.spinner("Carregando jogos..."):
+                    dias = obter_jogos_por_dia()
+            except Exception as erro:
+                st.warning(f"Não foi possível carregar os jogos. Detalhes: {erro}")
+            else:
+                for rotulo, jogos in dias:
+                    st.markdown(
+                        f'<h3 class="texto-menor-jogos"><strong style="font-weight:800">{escape(rotulo)}</strong></h3>',
+                        text_alignment="left",
+                        unsafe_allow_html=True,
+                    )
+                    for jogo in jogos:
+                        st.markdown(_html_jogo(jogo), text_alignment="left", unsafe_allow_html=True)
 
         esquerda, centro, direita = st.columns([1, 3, 1])
         with centro:

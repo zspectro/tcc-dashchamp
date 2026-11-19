@@ -97,7 +97,12 @@ st.markdown(
         
         .texto-menor {
             color: #666666 !important;
-            font-size: 12px;
+            font-size: 14px;
+        }
+        
+        .texto-menor-jogos {
+            color: #110d0d !important;
+            font-size: 14px;
         }
         
         .st-key-alterar_nick_button button p{
