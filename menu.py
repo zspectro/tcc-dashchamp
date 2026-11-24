@@ -3,6 +3,37 @@ from jogos import obter_jogos_por_dia
 
 import streamlit as st
 from requests import RequestException
+import requests
+from dotenv import load_dotenv
+import os
+import pandas as pd
+
+load_dotenv()
+
+BASE_URL = "https://api.api-futebol.com.br/v1"
+API_KEY_PADRAO = os.getenv("API_FUTEBOL_KEY", "")
+api_key = API_KEY_PADRAO
+
+def fazer_requisicao(endpoint: str, api_key: str):
+    """Realiza a chamada GET na API Futebol e trata erros."""
+    if not api_key:
+        return None, "Chave de API não informada."
+
+    url = f"{BASE_URL}{endpoint}"
+    headers = {"Authorization": f"Bearer {api_key}"}
+
+    try:
+        response = requests.get(url, headers=headers, timeout=(5, 30))
+        response.raise_for_status()
+        return response.json(), None
+    except requests.exceptions.HTTPError:
+        if response.status_code == 401:
+            return None, "Erro 401: Chave de API inválida ou expirada."
+        elif response.status_code == 429:
+            return None, "Erro 429: Limite de requisições atingido."
+        return None, f"Erro HTTP {response.status_code} ao consultar a API."
+    except requests.exceptions.RequestException as err:
+        return None, f"Erro de conexão: {err}"
 
 from noticias import obter_noticias_por_tema
 
@@ -154,18 +185,41 @@ def mostrar_menu():
 
     with col1:
         with st.container(key="container1", height=600):
-            st.markdown('<h1 class="titulo">Placar</h1>', text_alignment="center", unsafe_allow_html=True)
-            for i in range(1, 11):
-                st.markdown(
-                    f'<h5 class="texto-menor">{i}- Jogador -- x pontos</h5>',
-                    text_alignment="left",
-                    unsafe_allow_html=True,
-                )
-            st.markdown(
-                '<h5 class="texto-menor">11- Usuário -- x pontos</h5>',
-                text_alignment="left",
-                unsafe_allow_html=True,
-            )
+            dados_tabela, erro_tab = fazer_requisicao(f"/campeonatos/10/tabela", api_key)
+            
+            if erro_tab:
+                    st.error(erro_tab)
+            elif dados_tabela:
+                    # Extrai apenas os campos principais do JSON para montar uma tabela limpa
+                    linhas_formatadas = []
+                    for item in dados_tabela:
+                        linhas_formatadas.append({
+                            "Pos": item["posicao"],
+                            "Escudo": item["time"]["escudo"],
+                            "Time": item["time"]["nome_popular"],
+                            "P": item["pontos"],
+                            "J": item["jogos"],
+                            "V": item["vitorias"],
+                            "E": item["empates"],
+                            "D": item["derrotas"],
+                            "SG": item["saldo_gols"],
+                            "Aproveitamento (%)": item["aproveitamento"]
+                        })
+            
+                    df = pd.DataFrame(linhas_formatadas)
+            
+                    # Exibe o DataFrame renderizando a URL do escudo como imagem real
+                    st.dataframe(
+                        df,
+                        column_config={
+                            "Escudo": st.column_config.ImageColumn("Escudo", width="small"),
+                        },
+                        hide_index=True,
+                        use_container_width=True
+                    )
+            else:
+                    st.info("Este campeonato não possui tabela de classificação disponível (ex: mata-mata).")
+            
 
         esquerda, centro, direita = st.columns([1, 4, 1])
         with centro:

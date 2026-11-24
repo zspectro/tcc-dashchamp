@@ -2,3 +2,6 @@ streamlit
 requests
 firebase-admin
 google-cloud-firestore
+bs4
+selenium
+dotenv
