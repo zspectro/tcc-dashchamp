@@ -2,6 +2,7 @@ import streamlit as st
 import firebase_admin
 from firebase_admin import auth
 
+
 def _salvar_tema():
     st.session_state.tema = st.session_state.tema_widget
 
@@ -15,6 +16,7 @@ def perfil():
             esquerda, direita = st.columns([3,1], gap="xxlarge")
             with esquerda:
                 st.markdown(f'<h3 class="texto">Nome de usuário: {nome_usuario}</h3>', text_alignment="left", unsafe_allow_html=True)
+                st.markdown(f'<h3 class="texto">ID de usuário: {user.uid}</h3>', text_alignment="left", unsafe_allow_html=True)
                 st.markdown('<h3 class="texto">Foto de perfil: </h3>', text_alignment="left", unsafe_allow_html=True)
                 st.markdown('<h3 class="texto">Alterar tema: </h3>', text_alignment="left", unsafe_allow_html=True)
                 st.markdown('<h3 class="texto">Histórico </h3>', text_alignment="left", unsafe_allow_html=True)

@@ -2,11 +2,13 @@ import streamlit as st
 import requests
 import firebase_admin
 from firebase_admin import credentials, auth
+from usuarios import salvar_usuario
 
 from menu import mostrar_menu
 from sobre import mostrar_sobre
 from perfil import perfil
 from salas import salas
+from detalhes_sala import detalhes_sala 
 
 if not firebase_admin._apps:
     cred = credentials.Certificate('serviceAccountKey.json')
@@ -53,7 +55,7 @@ st.markdown(
     
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
 
-        * {
+        *:not(span[role="img"][translate="no"]) {
             font-family: 'Poppins', sans-serif !important;
         }
         
@@ -83,6 +85,10 @@ st.markdown(
 
         .titulo {
             color: #333333 !important;
+        }
+        
+        .titulo-branco {
+            color: #f1eded !important;
         }
         
         .texto {
@@ -160,11 +166,27 @@ st.markdown(
             
         }
         
-        .st-key-perfil_button button, .st-key-sala_button button, .st-key-sobre_button button, .st-key-voltar_button button {
+        .st-key-perfil_button button, .st-key-sala_button button, .st-key-sobre_button button, .st-key-voltar_button button button {
             width: 230px !important;
             height: 50px;
             background-color: #4CAF50;
             color: white;
+        }
+        
+        .st-key-apostar_button button {
+            width: 280px !important;
+            height: 70px;
+            background-color: #4CAF50;
+            color: white;
+            font-size: 26px !important;
+        }
+        
+        .st-key-apostar_button button p {
+            font-size: 26px !important;
+        }
+        
+        .st-key-apostar_button button:disabled {
+            background-color: #dc2626;
         }
         
         .st-key-sala_button button p{
@@ -305,7 +327,7 @@ elif st.session_state.tela == "cadastro":
                                 password=senha,
                                 display_name=usuario
                             )
-                            user.uid
+                            salvar_usuario(db, user)
                             st.success("Conta criada com sucesso!")
                             st.session_state.tela = "login"
                             st.rerun()
@@ -331,4 +353,10 @@ elif st.session_state.tela == "sobre":
 elif st.session_state.tela == "perfil":
     perfil()
 elif st.session_state.tela == "salas":
-    salas()
+    salas(db, st.session_state.uid)
+elif st.session_state.tela == "detalhes_sala":
+    sala_id = st.session_state.get("sala_id")
+    if sala_id:
+        detalhes_sala(db, st.session_state.uid, sala_id)
+    else:
+        st.error("ID da sala não encontrado.")
