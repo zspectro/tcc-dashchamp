@@ -5,10 +5,24 @@ import datetime
 import zoneinfo
 from google.cloud.firestore_v1.base_query import FieldFilter
 
+from apostas_db import em_prazo, obter_rodada
+
 MESES = (
     "janeiro", "fevereiro", "março", "abril", "maio", "junho",
     "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
 )
+
+
+def obter_numero_rodada(db, rodada_id):
+    rodada = obter_rodada(db, rodada_id)
+    return rodada.to_dict().get("numero") if rodada is not None else None
+
+
+def formatar_data_brasilia(data):
+    data_brasilia = data.astimezone(zoneinfo.ZoneInfo("America/Sao_Paulo"))
+    mes = MESES[data_brasilia.month - 1]
+    return f"{data_brasilia.day} de {mes} às {data_brasilia:%H:%M}"
+
 
 def _ir_para_tela(tela: str) -> None:
     st.session_state.tela = tela
@@ -21,12 +35,10 @@ def detalhes_sala(db, uid, sala_id):
     if sala_doc.exists:
         col1, col2, col3 = st.columns(3, gap="large")
         sala_data = sala_doc.to_dict()
-        rodada_ref = db.collection("rodadas").document(str(sala_data["rodadaId"]))
-        rodada_doc = rodada_ref.get()
-        rodada_data = rodada_doc.to_dict() if rodada_doc.exists else {}
-        participantes_ref = sala_ref.collection("participantes").stream()
-        participantes_data = [p.to_dict() for p in participantes_ref]
-        participantes = [p['nome'] for p in participantes_data]
+        numero_rodada = obter_numero_rodada(db, sala_data.get("rodadaId"))
+        participantes = {
+            doc.id: doc.to_dict() for doc in sala_ref.collection("participantes").stream()
+        }
         consulta = sala_ref.collection("participantes").where(
             filter=FieldFilter("uid", "==", sala_data['donoUid'])
         )
@@ -39,13 +51,9 @@ def detalhes_sala(db, uid, sala_id):
             container.markdown(f"<strong>Criador da Sala:</strong> {dono}", unsafe_allow_html=True)
             container.markdown(f"<strong>Nome da Sala:</strong> {sala_data['nome']}", unsafe_allow_html=True)
             container.markdown(f"<strong>Número Máximo de Jogadores:</strong> {sala_data['maxJogadores']}", unsafe_allow_html=True)
-            container.markdown(f"<strong>Rodada do Campeonato:</strong> {rodada_data['numero']}", unsafe_allow_html=True)
+            container.markdown(f"**Rodada do Campeonato:** {numero_rodada if numero_rodada is not None else 'Não informada'}")
             container.markdown(f"<strong>Código da Sala:</strong> {sala_data['codigo']}", unsafe_allow_html=True)
-            data_brasilia = sala_data["fechaEm"].astimezone(zoneinfo.ZoneInfo("America/Sao_Paulo"))
-            mes = MESES[data_brasilia.month - 1]
-            container.markdown(
-                f"**Jogos começam:** {data_brasilia.day} de {mes} às {data_brasilia:%H:%M}"
-            )
+            container.markdown(f"**Jogos começam:** {formatar_data_brasilia(sala_data['fechaEm'])}")
             container.markdown(f"<strong>Visibilidade:</strong> {sala_data['visibilidade']}", unsafe_allow_html=True)
         
 
@@ -56,7 +64,7 @@ def detalhes_sala(db, uid, sala_id):
             cabecalho = container2.container(horizontal=True, horizontal_alignment="distribute")
             cabecalho.markdown("Nickname", width="content")
             cabecalho.markdown("Pontos", width="content")
-            for jogador in participantes_data:
+            for jogador in participantes.values():
                 foto = jogador.get("fotoUrl")
 
                 container3 = container2.container(horizontal=True, vertical_alignment="center")
@@ -75,15 +83,21 @@ def detalhes_sala(db, uid, sala_id):
                     
                 
         with col3:
-            if sala_data["fechaEm"] < datetime.datetime.now(datetime.timezone.utc):
-                fechada = True
-            else:
-                fechada = False
+            fechada = not em_prazo(sala_data.get("fechaEm"), datetime.datetime.now(datetime.timezone.utc))
+            confirmou = bool(participantes.get(uid, {}).get("apostasConfirmadasEm"))
             with st.container(border=True, width=600, height="stretch"):
                 st.markdown('<h2 class="titulo-branco">Realizar apostas da sala</h2>', unsafe_allow_html=True, text_alignment="center")
                 st.space(24)
                 with st.container(horizontal=True, horizontal_alignment="center"):
-                    st.button("Apostar", width="content", key="apostar_button", disabled=fechada, help="O prazo para apostar nesta sala terminou." if fechada else None,)
+                    st.button(
+                        "Ver apostas" if confirmou else "Apostar",
+                        width="content",
+                        key="apostar_button",
+                        disabled=uid not in participantes or (fechada and not confirmou),
+                        help="O prazo para apostar nesta sala terminou." if fechada and not confirmou else None,
+                        on_click=_ir_para_tela,
+                        args=("apostas",),
+                    )
         st.button("Voltar", key="voltar_button", on_click=_ir_para_tela, args=("salas",))
     else:
         st.error("Sala não encontrada.")

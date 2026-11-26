@@ -8,7 +8,8 @@ from menu import mostrar_menu
 from sobre import mostrar_sobre
 from perfil import perfil
 from salas import salas
-from detalhes_sala import detalhes_sala 
+from detalhes_sala import detalhes_sala
+from apostas import mostrar_pagina_apostas
 
 if not firebase_admin._apps:
     cred = credentials.Certificate('serviceAccountKey.json')
@@ -354,9 +355,12 @@ elif st.session_state.tela == "perfil":
     perfil()
 elif st.session_state.tela == "salas":
     salas(db, st.session_state.uid)
-elif st.session_state.tela == "detalhes_sala":
+elif st.session_state.tela in ("detalhes_sala", "apostas"):
     sala_id = st.session_state.get("sala_id")
     if sala_id:
-        detalhes_sala(db, st.session_state.uid, sala_id)
+        if st.session_state.tela == "apostas":
+            mostrar_pagina_apostas(db, st.session_state.uid, sala_id)
+        else:
+            detalhes_sala(db, st.session_state.uid, sala_id)
     else:
         st.error("ID da sala não encontrado.")

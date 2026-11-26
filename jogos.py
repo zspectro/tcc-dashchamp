@@ -1,9 +1,6 @@
-import json
 import re
 import time
-from datetime import date, datetime, timedelta
-from urllib.request import urlopen
-from zoneinfo import ZoneInfo
+from datetime import date, timedelta
 
 import streamlit as st
 from selenium import webdriver
@@ -12,7 +9,6 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 URL = "https://ge.globo.com/agenda/#/futebol"
-URL_PARTIDAS_RODADA = "https://api.cartola.globo.com/partidas/{rodada}"
 DIAS_A_FRENTE = 7
 NOME_CAMPEONATO = "Campeonato Brasileiro"   # tem q ser o nome  exato
 TEMPO_CACHE = 1800 
@@ -169,23 +165,6 @@ def obter_rodada_atual() -> int | None:
 
     rodada = re.match(r"Rodada\s+(\d+)\b", cartoes[0]["rodada"])
     return int(rodada.group(1)) if rodada else None
-
-
-@st.cache_data(ttl=TEMPO_CACHE, show_spinner="Consultando o primeiro jogo da rodada...")
-def obter_inicio_primeiro_jogo(rodada: int) -> datetime | None:
-    """Busca o primeiro horário da rodada, incluindo partidas adiantadas."""
-    with urlopen(URL_PARTIDAS_RODADA.format(rodada=rodada), timeout=8) as resposta:
-        dados = json.load(resposta)
-
-    if dados.get("rodada") != rodada:
-        return None
-
-    horarios = (partida.get("timestamp") for partida in dados.get("partidas") or [])
-    primeiro_horario = min((hora for hora in horarios if isinstance(hora, int) and hora > 0), default=None)
-    if primeiro_horario is None:
-        return None
-
-    return datetime.fromtimestamp(primeiro_horario, ZoneInfo("America/Sao_Paulo"))
 
 
 if __name__ == "__main__":
