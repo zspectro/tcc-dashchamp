@@ -16,8 +16,8 @@ def _opcoes(jogo):
     return {"mandante": jogo["mandante"], "empate": "Empate", "visitante": jogo["visitante"]}
 
 
-@st.fragment(run_every="30s")
 def _mostrar_apostas(jogos_ref, participante_ref):
+    # usa o id de cada jogo para achar o palpite na hora de mostrar a partida
     apostas = {doc.id: doc.to_dict() for doc in participante_ref.collection("apostas").stream()}
     for doc in jogos_ref.order_by("inicioEm").stream():
         jogo = doc.to_dict()
@@ -29,6 +29,7 @@ def _mostrar_apostas(jogos_ref, participante_ref):
             partida.caption(formatar_data_brasilia(jogo["inicioEm"]))
             palpite = _opcoes(jogo).get(aposta.get("palpite"), "Sem palpite")
             partida.write(f"Seu palpite: {palpite}")
+            # valor vazio ainda está pendente e zero é um erro já corrigido
             if pontos is None:
                 situacao.info("Aguardando apuração")
             elif pontos > 0:
@@ -54,8 +55,9 @@ def mostrar_pagina_apostas(db, uid, sala_id):
         return
 
     jogos_ref = rodada.reference.collection("jogos")
+    # depois de confirmar, o jogador acompanha a situação dos palpites
     if participante.to_dict().get("apostasConfirmadasEm"):
-        st.caption("Apostas confirmadas")
+        st.caption("Apostas confirmadas. Os pontos aparecem depois que a administração apura os jogos.")
         _mostrar_apostas(jogos_ref, participante_ref)
         return
     if not em_prazo(sala.get("fechaEm"), datetime.now(timezone.utc)):

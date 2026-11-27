@@ -4,3 +4,4 @@ firebase-admin
 google-cloud-firestore
 selenium
 bs4
+tzdata

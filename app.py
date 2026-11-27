@@ -2,6 +2,8 @@ import streamlit as st
 import requests
 import firebase_admin
 from firebase_admin import credentials, auth
+from google.api_core.exceptions import GoogleAPIError
+from selenium.common.exceptions import WebDriverException
 from usuarios import salvar_usuario
 
 from menu import mostrar_menu
@@ -10,6 +12,7 @@ from perfil import perfil
 from salas import salas
 from detalhes_sala import detalhes_sala
 from apostas import mostrar_pagina_apostas
+from apurar_apostas import apurar_apostas
 
 if not firebase_admin._apps:
     cred = credentials.Certificate('serviceAccountKey.json')
@@ -267,6 +270,12 @@ if st.session_state.tela == "login":
             )
             
             if st.button("Entrar"):
+                # confere o acesso de administrador antes do login comum
+                if email == "admin" and senha == "12345678":
+                    # guarda o acesso e a tela para quando o streamlit rodar o app de novo
+                    st.session_state.admin_autenticado = True
+                    st.session_state.tela = "admin"
+                    st.rerun()
 
                 resposta = fazer_login(email, senha)
 
@@ -347,6 +356,23 @@ elif st.session_state.tela == "cadastro":
                 unsafe_allow_html=True
             )
         
+elif st.session_state.tela == "admin" and st.session_state.get("admin_autenticado", False):
+    st.title("Administração")
+    # só apura os jogos quando o administrador clica no botão
+    if st.button("Atualizar jogos", type="primary"):
+        try:
+            with st.spinner("Buscando resultados e apurando os palpites..."):
+                rodada, atualizados, corrigidos = apurar_apostas(db)
+        except WebDriverException:
+            st.error("Não foi possível carregar os jogos do ge. Tente novamente.")
+        except GoogleAPIError:
+            st.error("Não foi possível concluir a atualização no Firebase. Tente novamente.")
+        except ValueError as erro:
+            st.warning(str(erro))
+        else:
+            # o else só roda quando a apuração termina sem erro
+            st.success(f"Rodada {rodada} · {atualizados} jogo(s) atualizado(s) e {corrigidos} palpite(s) apurado(s).")
+
 elif st.session_state.tela == "menu":
     mostrar_menu()
 elif st.session_state.tela == "sobre":
