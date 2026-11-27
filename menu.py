@@ -1,41 +1,47 @@
 from html import escape
-from jogos import obter_jogos_por_dia
-
-import streamlit as st
-from requests import RequestException
-import requests
-from dotenv import load_dotenv
 import os
+from dotenv import load_dotenv
+from jogos import obter_jogos_por_dia
+from noticias import obter_noticias_por_tema
 import pandas as pd
+import requests
+from requests import RequestException
+import streamlit as st
 
 load_dotenv()
 
-BASE_URL = "https://api.api-futebol.com.br/v1"
-API_KEY_PADRAO = os.getenv("API_FUTEBOL_KEY", "")
+BASE_URL = "https://api.football-data.org/v4"
+API_KEY_PADRAO = os.getenv("API_KEY", "")
 api_key = API_KEY_PADRAO
 
+
 def fazer_requisicao(endpoint: str, api_key: str):
-    """Realiza a chamada GET na API Futebol e trata erros."""
+    """Realiza a chamada GET na football-data.org (v4) e trata erros."""
     if not api_key:
         return None, "Chave de API não informada."
 
     url = f"{BASE_URL}{endpoint}"
-    headers = {"Authorization": f"Bearer {api_key}"}
+    headers = {"X-Auth-Token": api_key}
 
     try:
         response = requests.get(url, headers=headers, timeout=(5, 30))
         response.raise_for_status()
         return response.json(), None
     except requests.exceptions.HTTPError:
-        if response.status_code == 401:
-            return None, "Erro 401: Chave de API inválida ou expirada."
+        if response.status_code in (401, 403):
+            return (
+                None,
+                "Erro de autenticação/permissão: Verifique sua chave de API ou"
+                " plano.",
+            )
         elif response.status_code == 429:
-            return None, "Erro 429: Limite de requisições atingido."
+            return (
+                None,
+                "Erro 429: Limite de requisições por minuto atingido.",
+            )
         return None, f"Erro HTTP {response.status_code} ao consultar a API."
     except requests.exceptions.RequestException as err:
         return None, f"Erro de conexão: {err}"
-
-from noticias import obter_noticias_por_tema
 
 
 def _mover_carrossel(chave: str, direcao: int, quantidade: int) -> None:
@@ -55,14 +61,16 @@ def _html_card_noticia(noticia: dict, indice: int, quantidade: int) -> str:
     categoria = escape(str(noticia.get("categoria", "Apostas e sociedade")))
 
     data = noticia.get("publicada_em")
-    data_formatada = data.strftime("%d/%m/%Y às %H:%M") if data else "Data não identificada"
+    data_formatada = (
+        data.strftime("%d/%m/%Y às %H:%M") if data else "Data não identificada"
+    )
     data_formatada = escape(data_formatada)
 
     imagem_html = ""
     if imagem.startswith("https://"):
         imagem_html = (
             f'<img class="dash-noticia-imagem" src="{escape(imagem, quote=True)}" '
-            f'alt="Imagem da notícia" loading="lazy">'
+            'alt="Imagem da notícia" loading="lazy">'
         )
 
     return f"""
@@ -132,13 +140,17 @@ def _html_card_noticia(noticia: dict, indice: int, quantidade: int) -> str:
       <div class="dash-noticia-meta">{data_formatada} · {categoria} · Notícia {indice + 1} de {quantidade} · Agência Brasil</div>
     </div>
     """
-    
+
+
 def _html_jogo(jogo: dict) -> str:
-    """Uma linha: Mandante x Visitante  horário (tudo em uma linha só)."""
+    """Uma linha: Mandante x Visitante horário (tudo em uma linha só)."""
     mandante = escape(jogo["mandante"])
     visitante = escape(jogo["visitante"])
     horario = escape(jogo["horario"])
-    return f'<h3 class="texto">{mandante} x {visitante} <small>{horario}</small></h3>'
+    return (
+        f'<h3 class="texto">{mandante} x {visitante}'
+        f" <small>{horario}</small></h3>"
+    )
 
 
 def _mostrar_carrossel_do_tema(noticias: list[dict], numero_aba: int) -> None:
@@ -147,7 +159,7 @@ def _mostrar_carrossel_do_tema(noticias: list[dict], numero_aba: int) -> None:
         st.info("Nenhuma notícia recente encontrada para este tema.")
         return
 
-    chave = f"noticia_atual_{numero_aba}"   # cada aba lembra a própria posição
+    chave = f"noticia_atual_{numero_aba}"  # cada aba lembra a própria posição
     quantidade = len(noticias)
     indice = st.session_state.get(chave, 0) % quantidade
     st.session_state[chave] = indice
@@ -185,57 +197,81 @@ def mostrar_menu():
 
     with col1:
         with st.container(key="container1", height=600):
-            dados_tabela, erro_tab = fazer_requisicao(f"/campeonatos/10/tabela", api_key)
-            
+            dados_tabela, erro_tab = fazer_requisicao(
+                "/competitions/BSA/standings", api_key
+            )
+
             if erro_tab:
-                    st.error(erro_tab)
-            elif dados_tabela:
-                    # Extrai apenas os campos principais do JSON para montar uma tabela limpa
-                    linhas_formatadas = []
-                    for item in dados_tabela:
-                        linhas_formatadas.append({
-                            "Pos": item["posicao"],
-                            "Escudo": item["time"]["escudo"],
-                            "Time": item["time"]["nome_popular"],
-                            "P": item["pontos"],
-                            "J": item["jogos"],
-                            "V": item["vitorias"],
-                            "E": item["empates"],
-                            "D": item["derrotas"],
-                            "SG": item["saldo_gols"],
-                            "Aproveitamento (%)": item["aproveitamento"]
-                        })
-            
-                    df = pd.DataFrame(linhas_formatadas)
-            
-                    # Exibe o DataFrame renderizando a URL do escudo como imagem real
-                    st.dataframe(
-                        df,
-                        column_config={
-                            "Escudo": st.column_config.ImageColumn("Escudo", width="small"),
-                        },
-                        hide_index=True,
-                        use_container_width=True
+                st.error(erro_tab)
+            elif dados_tabela and "standings" in dados_tabela:
+                tabela_brasileirao = dados_tabela["standings"][0]["table"]
+
+                linhas_formatadas = []
+                for item in tabela_brasileirao:
+                    jogos = item["playedGames"]
+                    pontos = item["points"]
+                    aproveitamento = (
+                        round((pontos / (jogos * 3)) * 100, 1)
+                        if jogos > 0
+                        else 0.0
                     )
+
+                    linhas_formatadas.append({
+                        "Pos": item["position"],
+                        "Escudo": item["team"]["crest"],
+                        "Time": (
+                            item["team"].get("shortName")
+                            or item["team"]["name"]
+                        ),
+                        "P": pontos,
+                        "J": jogos,
+                        "V": item["won"],
+                        "E": item["draw"],
+                        "D": item["lost"],
+                        "SG": item["goalDifference"],
+                        "Aproveitamento (%)": aproveitamento,
+                    })
+
+                df = pd.DataFrame(linhas_formatadas)
+
+                st.dataframe(
+                    df,
+                    column_config={
+                        "Escudo": st.column_config.ImageColumn(
+                            "Escudo", width="small"
+                        ),
+                    },
+                    hide_index=True,
+                    use_container_width=True,
+                )
             else:
-                    st.info("Este campeonato não possui tabela de classificação disponível (ex: mata-mata).")
-            
+                st.info("Tabela de classificação não disponível no momento.")
 
         esquerda, centro, direita = st.columns([1, 4, 1])
         with centro:
-            st.button("Perfil", key="perfil_button", wrap=True, on_click=_ir_para_tela, args=("perfil",))
+            st.button(
+                "Perfil",
+                key="perfil_button",
+                wrap=True,
+                on_click=_ir_para_tela,
+                args=("perfil",),
+            )
 
     with col2:
         with st.container(key="container2", height=600):
-            st.markdown('<h1 class="titulo">Notícias</h1>', text_alignment="center", unsafe_allow_html=True)
+            st.markdown(
+                '<h1 class="titulo">Notícias</h1>',
+                text_alignment="center",
+                unsafe_allow_html=True,
+            )
 
             with st.container(key="inside-container"):
                 try:
                     temas = obter_noticias_por_tema()
                 except RequestException as erro:
                     st.warning(
-                        "Não foi possível carregar as notícias da Agência Brasil. "
-                        f"Detalhes: {erro}"
+                        "Não foi possível carregar as notícias da Agência"
+                        f" Brasil. Detalhes: {erro}"
                     )
                 else:
                     # abas sempre verdes (selecionada, não selecionada e hover)
@@ -266,23 +302,37 @@ def mostrar_menu():
                     )
 
                     abas = st.tabs(list(temas))
-                    for numero, (aba, noticias) in enumerate(zip(abas, temas.values())):
+                    for numero, (aba, noticias) in enumerate(
+                        zip(abas, temas.values())
+                    ):
                         with aba:
                             _mostrar_carrossel_do_tema(noticias, numero)
 
         esquerda, centro, direita = st.columns([1, 1, 1])
         with centro:
-            st.button("Salas", key="sala_button", wrap=True, on_click=_ir_para_tela, args=("salas",))
+            st.button(
+                "Salas",
+                key="sala_button",
+                wrap=True,
+                on_click=_ir_para_tela,
+                args=("salas",),
+            )
 
     with col3:
         with st.container(key="container3", height=600):
-            st.markdown('<h1 class="titulo">Jogos</h1>', text_alignment="center", unsafe_allow_html=True)
+            st.markdown(
+                '<h1 class="titulo">Jogos</h1>',
+                text_alignment="center",
+                unsafe_allow_html=True,
+            )
 
             try:
                 with st.spinner("Carregando jogos..."):
                     dias = obter_jogos_por_dia()
             except Exception as erro:
-                st.warning(f"Não foi possível carregar os jogos. Detalhes: {erro}")
+                st.warning(
+                    f"Não foi possível carregar os jogos. Detalhes: {erro}"
+                )
             else:
                 for rotulo, jogos in dias:
                     st.markdown(
@@ -291,8 +341,17 @@ def mostrar_menu():
                         unsafe_allow_html=True,
                     )
                     for jogo in jogos:
-                        st.markdown(_html_jogo(jogo), text_alignment="left", unsafe_allow_html=True)
+                        st.markdown(
+                            _html_jogo(jogo),
+                            text_alignment="left",
+                            unsafe_allow_html=True,
+                        )
 
         esquerda, centro, direita = st.columns([1, 3, 1])
         with centro:
-            st.button("Sobre", key="sobre_button", on_click=_ir_para_tela, args=("sobre",))
+            st.button(
+                "Sobre",
+                key="sobre_button",
+                on_click=_ir_para_tela,
+                args=("sobre",),
+            )
