@@ -5,3 +5,4 @@ google-cloud-firestore
 selenium
 bs4
 tzdata
+dotenv
